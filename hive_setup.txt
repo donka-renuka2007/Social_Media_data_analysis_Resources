@@ -1,0 +1,171 @@
+CREATE TABLE social_media_posts (
+    post_id INT,
+    posted_time TIMESTAMP,
+    user_id STRING,
+    username STRING,
+    post_text STRING,
+    hashtags STRING,
+    likes_count INT,
+    retweets_count INT,
+    reply_count INT,
+    location STRING,
+    sentiment STRING,
+    polarity_score FLOAT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+TBLPROPERTIES ("skip.header.line.count"="1");
+
+desc soial_media_posts;
+
+LOAD DATA LOCAL INPATH 'path' INTO TABLE social_media_posts;
+
+select * from social_media_posts limit 10;
+
+
+SET hive.exec.mode.local.auto=true; (faster run)
+
+
+Analysis:
+1.which time posts more generated
+
+morning - cnt
+afternoon - cnt
+evening -cnt
+night - cnt
+
+
+SELECT
+CASE 
+WHEN HOUR(posted_time) BETWEEN 5 AND 11 THEN 'Morning'
+WHEN HOUR(posted_time) BETWEEN 12 AND 16 THEN 'Afternoon'
+WHEN HOUR(posted_time) BETWEEN 17 AND 20 THEN 'Evening'
+ELSE 'Night' 
+END AS Time_of_Day,
+COUNT(post_id) as post_counts
+FROM social_media_posts
+GROUP BY
+CASE 
+WHEN HOUR(posted_time) BETWEEN 5 AND 11 THEN 'Morning'
+WHEN HOUR(posted_time) BETWEEN 12 AND 16 THEN 'Afternoon'
+WHEN HOUR(posted_time) BETWEEN 17 AND 20 THEN 'Evening'
+ELSE 'Night' 
+END;
+
+Result:
+Afternoon	1200
+Evening	960
+Morning	1440
+Night	1400
+
+
+
+2.Top 5 Trending posts
+
+SELECT
+tag,
+COUNT(post_id) as post_counts
+FROM social_media_posts
+LATERAL VIEW
+explode(split(hashtags,"#"))h as tag
+WHERE tag!=''
+GROUP BY tag
+ORDER BY post_counts DESC
+LIMIT 5;
+
+Result:
+Crypto;	334
+CityLife	334
+GoGreen;	334
+TransitFail;	334
+ but the iced coffee was good."	334
+ 
+ 
+
+3.Top 5 posts having more likes corresponding user_id,user_name
+
+SELECT
+post_id,
+likes_count,
+user_id,
+username
+FROM social_media_posts
+ORDER BY likes_count DESC
+LIMIT 5;
+
+Result:
+10812	671	USR_1811	user_413
+13911	667	USR_4910	user_518
+11263	665	USR_2262	user_365
+12832	663	USR_3831	user_437
+11959	662	USR_2958	user_562
+
+4.top 5 location where posts more created
+SELECT 
+location,
+COUNT(post_id) as post_counts
+FROM social_media_posts
+GROUP BY location
+ORDER BY post_counts DESC
+LIMIT 5;
+
+Result:
+London UK	667
+San Francisco USA	334
+New York USA	334
+Sydney Australia	334
+Tokyo Japan	333
+
+
+5.Top 5 posts having more retweets count
+
+
+SELECT
+post_id,
+retweets_count,
+user_id,
+username
+FROM social_media_posts
+ORDER BY retweets_count DESC
+LIMIT 5;
+
+Result:
+10784	652	USR_1783	user_385
+13979	648	USR_4978	user_586
+13664	646	USR_4663	user_271
+13394	644	USR_4393	user_500
+11624	642	USR_2623	user_227
+
+
+6.Top 5 posts having more reply count
+
+SELECT
+post_id,
+reply_count,
+user_id,
+username
+FROM social_media_posts
+ORDER BY reply_count DESC
+LIMIT 5;
+
+Result:
+12164	200	USR_3163	user_268
+14399	197	USR_5398	user_507
+11369	194	USR_2368	user_471
+13784	193	USR_4783	user_391
+10604	192	USR_1603	user_205
+
+7.sentiment Analysis
+SELECT
+sentiment,
+COUNT(*) as post_counts
+FROM social_media_posts
+GROUP BY sentiment
+ORDER BY post_counts DESC LIMIT 5;
+
+Result:
+Positive	2666
+Negative	1666
+Toronto Canada	334
+Neutral	334
+
