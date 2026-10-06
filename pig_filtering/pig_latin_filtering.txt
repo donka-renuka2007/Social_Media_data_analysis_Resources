@@ -1,0 +1,66 @@
+pig -x local
+posts = LOAD '/home/hdp/Downloads/social_media_sentiment_5000.csv' USING PigStorage(',') AS (
+    post_id: long,
+    timestamp: chararray,
+    user_id: chararray,
+    username: chararray,
+    post_text: chararray,
+    hashtags: chararray,
+    likes_count: int,
+    retweets_count: int,
+    reply_count: int,
+    location: chararray,
+    sentiment: chararray,
+    polarity_score: double
+);
+
+script-1:
+
+selected_cols = FOREACH posts GENERATE post_id, likes_count, user_id, username;
+ordered_posts = ORDER selected_cols BY likes_count ASC;
+top5_least_liked = LIMIT ordered_posts 5;
+DUMP top5_least_liked;
+Result:
+(14984,,USR_5983,user_593)
+(12644,,USR_3643,user_249)
+(12614,,USR_3613,user_219)
+(12629,,USR_3628,user_234)
+(11294,,USR_2293,user_396)
+
+
+script-2:
+-- Select specific columns matching your SQL query
+selected_cols = FOREACH posts GENERATE post_id, likes_count, user_id, username;
+
+-- Order by likes_count ascending
+ordered_posts = ORDER selected_cols BY likes_count ASC;
+
+-- Limit to 5 records
+top5_least_liked = LIMIT ordered_posts 5;
+
+-- Display result
+DUMP top5_least_liked;
+
+
+script-3:
+-- Extract hour and assign time category using BINCOND
+categorized = FOREACH posts GENERATE 
+    post_id,
+    polarity_score,
+    (
+        GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) >= 5 AND GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) <= 11 ? 'Morning' :
+        (GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) >= 12 AND GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) <= 16 ? 'Afternoon' :
+        (GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) >= 17 AND GetHour(ToDate(timestamp, 'yyyy-MM-dd HH:mm:ss')) <= 20 ? 'Evening' : 'Night'))
+    ) AS time_category;
+
+-- Group by time category
+grouped_time = GROUP categorized BY time_category;
+
+-- Calculate total post count and average sentiment polarity per category
+analytics = FOREACH grouped_time GENERATE 
+    group AS time_category, 
+    COUNT(categorized.post_id) AS total_posts,
+    AVG(categorized.polarity_score) AS avg_polarity;
+
+-- Display result
+DUMP analytics;
